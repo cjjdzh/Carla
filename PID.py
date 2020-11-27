@@ -16,7 +16,9 @@ try:
 except IndexError:
     pass
 import cv2
+import cv
 import carla
+import matplotlib.pyplot as plt
 from carla import ColorConverter as cc
 
 from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
@@ -30,9 +32,10 @@ import random
 import time
 import numpy as np
 import random
-IM_WIDTH = 640
-IM_HEIGHT = 480
-
+IM_WIDTH = 1280
+IM_HEIGHT = 720
+left_fit=None
+right_fit=None
 #get 10 waypoints in front of the car and store value in look_ahead_list
 def update_look_head_list(waypoints,car_location):
     min_dist=float("inf")
@@ -99,8 +102,8 @@ def math_conv(look_ahead_list,car_location):
 
 def set_throttle(currentz,lastz):
     #uphill
-    if currentz-lastz>0.02:
-        throttle=0.8
+    if currentz-lastz>0.01:
+        throttle=0.6
     #downhill
     elif currentz-lastz<-0.02:
         throttle=0.2
@@ -111,14 +114,18 @@ def set_throttle(currentz,lastz):
 
 
 def process_img(image):
+    print (type(image))
     i = np.array(image.raw_data)
     i2 = i.reshape((IM_HEIGHT, IM_WIDTH, 4))
     i3 = i2[:, :, :3]
-    cv2.imshow("", i3)
+    # cv2.imshow("", i3)
+    left_fit, right_fit, output1 =cv.find_street_lanes(i3)
+    cv2.imshow("",cv2.cvtColor(output1, cv2.COLOR_BGR2RGB))
+    cv2.waitKey(1)
+    #plt.imshow(cv2.cvtColor(output1, cv2.COLOR_BGR2RGB))
     #image.save_to_disk("image"+str(random.randint(1,1000)))
     #cv2.imwrite('test.png', i3)
-    cv2.waitKey(1)
-    return i3/255.0
+    return None
 
 
 actor_list = []
@@ -158,7 +165,7 @@ try:
     blueprint.set_attribute('fov', '110')
 
     # Adjust sensor relative to vehicle
-    spawn_point = carla.Transform(carla.Location(x=-2.5, z=2.5))
+    spawn_point = carla.Transform(carla.Location(x=1.6, z=1.7), carla.Rotation(pitch=8.0))
 
     # spawn the sensor and attach to vehicle.
     sensor = world.spawn_actor(blueprint, spawn_point, attach_to=vehicle)
@@ -167,7 +174,7 @@ try:
     actor_list.append(sensor)
 
     # do something with this sensor
-    #sensor.listen(lambda data: process_img(data))
+    sensor.listen(lambda data: process_img(data))
 
     #generate the route based on start point a and end point b
     map = client.get_world().get_map()
@@ -207,7 +214,7 @@ try:
         spectator.set_transform(camera.get_transform())
         #get traffic light state
         lightsign=vehicle.get_traffic_light()
-        if lightsign!=None:
+        if 1!=1:
             #red light set brake to 1
             vehicle.apply_control(carla.VehicleControl(throttle=0, steer=0,brake=1))
         else:
